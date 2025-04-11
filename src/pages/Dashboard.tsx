@@ -12,6 +12,7 @@ import type { GithubRepo, GithubFile } from "@/types/github";
 export default function Dashboard() {
   const [selectedRepo, setSelectedRepo] = useState<GithubRepo | null>(null);
   const [selectedFile, setSelectedFile] = useState<GithubFile | null>(null);
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
 
   const handleRepoSelect = (repo: GithubRepo) => {
     setSelectedRepo(repo);
@@ -207,7 +208,10 @@ export default function Dashboard() {
           </div>
           
           <div className="space-y-6">
-            <DatabaseStatus isConnected={false} tablesCreated={false} />
+            <DatabaseStatus onConnectionChange={(connected) => {
+              // You could update other UI elements based on connection status
+              console.log("Supabase connection status:", connected);
+            }} />
             
             {selectedFile && (
               <div className="bg-slate-800/50 border border-slate-700 rounded-md overflow-hidden">

@@ -2,13 +2,25 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './supabase-types'
 
-// These values should be replaced with environment variables in a production app
-// For now, they'll be placeholder values
+// Using direct values for demonstration purposes
+// In a real Vercel deployment, you would access these from Vercel's environment variables
+// These values will be replaced when you connect to Supabase via Lovable integration
 const supabaseUrl = 'https://your-supabase-project.supabase.co'
 const supabaseAnonKey = 'your-supabase-anon-key'
 
 // Initialize the Supabase client
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+
+// Use this method after connecting to Supabase through Lovable to check connection
+export const checkSupabaseConnection = async () => {
+  try {
+    const { data, error } = await supabase.from('github_repositories').select('count').limit(0)
+    return !error
+  } catch (error) {
+    console.error('Error checking Supabase connection:', error)
+    return false
+  }
+}
 
 export const initializeDatabase = async () => {
   try {

@@ -3,18 +3,24 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Github, Loader2 } from "lucide-react";
+import { Github, Loader2, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { GithubRepo } from "@/types/github";
+import { saveRepository } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 
 interface RepoConnectorProps {
   onRepoSelect: (repo: GithubRepo) => void;
+  isSupabaseConnected?: boolean;
 }
 
-export default function RepoConnector({ onRepoSelect }: RepoConnectorProps) {
+export default function RepoConnector({ onRepoSelect, isSupabaseConnected = false }: RepoConnectorProps) {
   const [repoUrl, setRepoUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedToDb, setSavedToDb] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
   
   // Format: username/repo or full GitHub URL
   const parseRepoUrl = (url: string) => {
@@ -42,12 +48,12 @@ export default function RepoConnector({ onRepoSelect }: RepoConnectorProps) {
   const fetchRepoInfo = async () => {
     setIsLoading(true);
     setError(null);
+    setSavedToDb(false);
     
     try {
       const repoPath = parseRepoUrl(repoUrl);
       
-      // This is a mock implementation since we need Supabase to store the GitHub token
-      // In a real implementation, we would use a GitHub token to authenticate the API request
+      // Fetch repository information from GitHub API
       const response = await fetch(`https://api.github.com/repos/${repoPath}`);
       
       if (!response.ok) {
@@ -56,10 +62,47 @@ export default function RepoConnector({ onRepoSelect }: RepoConnectorProps) {
       
       const repoData = await response.json();
       onRepoSelect(repoData);
+      
+      // If Supabase is connected, save the repository to the database
+      if (isSupabaseConnected) {
+        await saveToSupabase(repoData);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to connect to repository");
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const saveToSupabase = async (repoData: GithubRepo) => {
+    if (!isSupabaseConnected) return;
+    
+    setIsSaving(true);
+    try {
+      const savedRepo = await saveRepository(repoData);
+      
+      if (savedRepo) {
+        setSavedToDb(true);
+        toast({
+          title: "Repository saved",
+          description: `Successfully saved ${repoData.full_name} to Supabase database`,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Failed to save",
+          description: "Could not save repository to database",
+        });
+      }
+    } catch (err) {
+      console.error("Error saving to Supabase:", err);
+      toast({
+        variant: "destructive",
+        title: "Database error",
+        description: err instanceof Error ? err.message : "Failed to save repository data",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
   
@@ -105,11 +148,19 @@ export default function RepoConnector({ onRepoSelect }: RepoConnectorProps) {
             </Alert>
           )}
           
+          {savedToDb && (
+            <Alert className="bg-green-900/30 border-green-800 text-green-200">
+              <CheckCircle className="h-4 w-4 text-green-400" />
+              <AlertTitle>Success</AlertTitle>
+              <AlertDescription>Repository successfully saved to Supabase database</AlertDescription>
+            </Alert>
+          )}
+          
           <div className="p-3 bg-slate-700/40 rounded-md text-xs text-slate-300">
             <p>
-              <strong className="text-teal-400">Note:</strong> You need to connect to Supabase first 
-              to store GitHub API tokens and repository data. Once connected, you'll be able 
-              to authenticate and sync repositories.
+              <strong className="text-teal-400">Note:</strong> {isSupabaseConnected 
+                ? "Connected to Supabase. Repository data will be saved to the database."
+                : "You need to connect to Supabase first to store GitHub API tokens and repository data. Once connected, you'll be able to authenticate and sync repositories."}
             </p>
           </div>
         </div>
